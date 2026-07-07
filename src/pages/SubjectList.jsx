@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import Fuse from "fuse.js";
+import { withBase } from "../lib/paths";
 
 const MODE_TITLES = {
   all: "📚 جميع المواد",
@@ -53,8 +54,8 @@ function SubjectList({ mode = "all" }) {
   // تحميل فهرس المواد والخطة الدراسية مرة واحدة
   useEffect(() => {
     Promise.all([
-      fetch("/data/subjects-index.json").then((r) => r.json()),
-      fetch("/data/study-plan.json").then((r) => r.json()),
+      fetch(withBase("data/subjects-index.json")).then((r) => r.json()),
+      fetch(withBase("data/study-plan.json")).then((r) => r.json()),
     ]).then(([ids, plan]) => {
       setAllIds(ids);
       setPlanIndex(buildPlanIndex(plan));
@@ -81,7 +82,7 @@ function SubjectList({ mode = "all" }) {
     setLoading(true);
     Promise.all(
       ids.map((id) =>
-        fetch(`/pdf/${id}/subject.json`)
+        fetch(withBase(`pdf/${id}/subject.json`))
           .then((res) => (res.ok ? res.json() : null))
           .then((data) => {
             if (data) return { ...data, id };

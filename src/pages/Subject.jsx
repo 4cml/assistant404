@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
+import { withBase } from "../lib/paths";
 
 const SECTION_LABELS = {
   theory: "📖 نظري",
@@ -35,7 +36,7 @@ function Subject() {
 
   useEffect(() => {
     // نحاول أولاً نجيب subject.json خاص بهذه المادة (لو موجود)
-    fetch(`/pdf/${id}/subject.json`)
+    fetch(withBase(`pdf/${id}/subject.json`))
       .then((res) => {
         if (!res.ok) throw new Error("no subject.json");
         return res.json();
@@ -48,7 +49,7 @@ function Subject() {
       .catch(() => {
         // ما فيه subject.json خاص → نجيب المعلومات الأساسية من الخطة الدراسية
         setHasSubjectFile(false);
-        fetch("/data/study-plan.json")
+        fetch(withBase("data/study-plan.json"))
           .then((res) => res.json())
           .then((plan) => {
             const course = findCourseInPlan(plan, id);
@@ -70,7 +71,7 @@ function Subject() {
       });
 
     // نحاول نجيب lectures.json (لو موجود)، وإلا نتركها فاضية
-    fetch(`/pdf/${id}/lectures.json`)
+    fetch(withBase(`pdf/${id}/lectures.json`))
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => setLectures(data))
       .catch(() => setLectures([]));
@@ -163,8 +164,7 @@ function Subject() {
                       {item.week ? ` — الأسبوع ${item.week}` : ""}
                     </span>
                     {item.file ? (
-                      <a href={`/${item.file}`} target="_blank" rel="noreferrer">
-                        فتح الملف ↗
+                    <a href={withBase(item.file)} target="_blank" rel="noreferrer">                        فتح الملف ↗
                       </a>
                     ) : (
                       <span style={{ color: "#999" }}>لا يوجد ملف بعد</span>

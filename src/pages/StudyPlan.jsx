@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { withBase } from "../lib/paths";
 
 function CoursesTable({ courses }) {
   return (
@@ -80,7 +81,7 @@ function StudyPlan() {
   const [openYear, setOpenYear] = useState(null);
 
   useEffect(() => {
-    fetch("/data/study-plan.json")
+    fetch(withBase("data/study-plan.json"))
       .then((res) => res.json())
       .then((data) => setPlan(data));
   }, []);
