@@ -63,7 +63,7 @@ function SubjectList({ mode }) {
   const results = query.trim() === "" ? filtered : fuse.search(query).map((r) => r.item);
 
   return (
-    <div style={{ flex: 1, padding: 20, fontFamily: "sans-serif", direction: "rtl" }}>
+    <div className="flex-1 p-5 font-sans" dir="rtl">
       <h1>{title}</h1>
 
       <input
@@ -71,13 +71,8 @@ function SubjectList({ mode }) {
         placeholder="🔍 ابحث عن مادة، دكتور، قسم..."
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        style={{
-          width: "100%",
-          padding: 10,
-          fontSize: 16,
-          marginBottom: 20,
-          direction: "rtl",
-        }}
+        dir="rtl"
+        className="w-full p-2.5 text-base mb-5"
       />
 
       {results.length === 0 && <p>لا توجد نتائج.</p>}
@@ -86,20 +81,14 @@ function SubjectList({ mode }) {
         {results.map((subject) => (
           <div
             key={subject.id}
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              padding: 10,
-              borderBottom: "1px solid #ddd",
-            }}
+            className="flex justify-between items-center p-2.5 border-b border-[#ddd]"
           >
-            <Link to={`/subject/${subject.id}`} style={{ textDecoration: "none", color: "inherit" }}>
+            <Link to={`/subject/${subject.id}`} className="no-underline text-inherit">
               <strong>{subject.name}</strong> — السنة {subject.year}، الفصل {subject.semester}
             </Link>
             <button
               onClick={() => toggleFavorite(subject.id)}
-              style={{ border: "none", background: "none", fontSize: 20, cursor: "pointer" }}
+              className="border-none bg-transparent text-xl cursor-pointer"
             >
               {favorites.includes(subject.id) ? "⭐" : "☆"}
             </button>
