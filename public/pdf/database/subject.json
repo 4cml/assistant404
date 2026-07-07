@@ -1,0 +1,11 @@
+{
+  "id": "database",
+  "name": "قواعد البيانات",
+  "year": 3,
+  "semester": 1,
+  "creditHours": 3,
+  "department": "CS",
+  "professors": ["Dr. Ahmed"],
+  "hasTheory": true,
+  "hasLab": false
+}
