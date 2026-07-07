@@ -15,7 +15,7 @@ function CoursesTable({ courses }) {
         {courses.map((course, i) => (
           <tr key={i}>
             <td style={{ padding: 8, border: "1px solid #eee" }}>
-              <Link to={`/subject/${course.id}`} style={{ color: "#2563eb" }}>
+              <Link to={`/subject/${course.subjectSlug || course.id}`} style={{ color: "#2563eb" }}>
                 {course.name}
               </Link>
             </td>
