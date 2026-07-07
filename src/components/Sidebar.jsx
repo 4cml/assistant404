@@ -14,27 +14,19 @@ function Sidebar() {
 
   return (
     <div
-      style={{
-        width: 200,
-        minHeight: "100vh",
-        borderLeft: "1px solid #ddd",
-        padding: 20,
-        fontFamily: "sans-serif",
-        direction: "rtl",
-      }}
+      dir="rtl"
+      className="w-[200px] min-h-screen border-l border-solid border-[#ddd] p-5 font-sans"
     >
-      <h3 style={{ marginBottom: 20 }}>القائمة</h3>
+      <h3 className="mb-5">القائمة</h3>
       {links.map((link) => (
         <Link
           key={link.path}
           to={link.path}
-          style={{
-            display: "block",
-            padding: "10px 0",
-            textDecoration: "none",
-            color: location.pathname === link.path ? "#2563eb" : "#333",
-            fontWeight: location.pathname === link.path ? "bold" : "normal",
-          }}
+          className={`block py-2.5 px-0 no-underline ${
+            location.pathname === link.path
+              ? "text-[#2563eb] font-bold"
+              : "text-[#333] font-normal"
+          }`}
         >
           {link.label}
         </Link>

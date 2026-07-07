@@ -3,24 +3,24 @@ import { Link } from "react-router-dom";
 
 function CoursesTable({ courses }) {
   return (
-    <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8 }}>
+    <table className="w-full border-collapse mt-2">
       <thead>
-        <tr style={{ background: "#f9fafb" }}>
-          <th style={{ padding: 8, border: "1px solid #eee" }}>اسم المقرر</th>
-          <th style={{ padding: 8, border: "1px solid #eee" }}>رمز المقرر</th>
-          <th style={{ padding: 8, border: "1px solid #eee" }}>الساعات</th>
+        <tr className="bg-[#f9fafb]">
+          <th className="p-2 border border-[#eee]">اسم المقرر</th>
+          <th className="p-2 border border-[#eee]">رمز المقرر</th>
+          <th className="p-2 border border-[#eee]">الساعات</th>
         </tr>
       </thead>
       <tbody>
         {courses.map((course, i) => (
           <tr key={i}>
-            <td style={{ padding: 8, border: "1px solid #eee" }}>
-              <Link to={`/subject/${course.subjectSlug || course.id}`} style={{ color: "#2563eb" }}>
+            <td className="p-2 border border-[#eee]">
+              <Link to={`/subject/${course.subjectSlug || course.id}`} className="text-[#2563eb]">
                 {course.name}
               </Link>
             </td>
-            <td style={{ padding: 8, border: "1px solid #eee" }}>{course.code || "-"}</td>
-            <td style={{ padding: 8, border: "1px solid #eee" }}>{course.hours}</td>
+            <td className="p-2 border border-[#eee]">{course.code || "-"}</td>
+            <td className="p-2 border border-[#eee]">{course.hours}</td>
           </tr>
         ))}
       </tbody>
@@ -35,40 +35,30 @@ function LevelBlock({ lvl }) {
   );
 
   return (
-    <div style={{ marginBottom: 10 }}>
+    <div className="mb-2.5">
       <div
         onClick={() => setOpen(!open)}
-        style={{
-          padding: 10,
-          background: "#fafafa",
-          cursor: "pointer",
-          display: "flex",
-          justifyContent: "space-between",
-          border: "1px solid #eee",
-        }}
+        className="p-2.5 bg-[#fafafa] cursor-pointer flex justify-between border border-[#eee]"
       >
         <span>{lvl.semesterLabel} — {lvl.totalHours} ساعة</span>
         <span>{open ? "▲" : "▼"}</span>
       </div>
 
       {open && (
-        <div style={{ padding: 8 }}>
+        <div className="p-2">
           {lvl.hasSpecializations ? (
             <>
               {/* أزرار اختيار التخصص */}
-              <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+              <div className="flex gap-2 mb-2.5 flex-wrap">
                 {Object.keys(lvl.tracks).map((trackName) => (
                   <button
                     key={trackName}
                     onClick={() => setActiveTrack(trackName)}
-                    style={{
-                      padding: "6px 12px",
-                      border: "1px solid #ccc",
-                      borderRadius: 6,
-                      cursor: "pointer",
-                      background: activeTrack === trackName ? "#2563eb" : "#fff",
-                      color: activeTrack === trackName ? "#fff" : "#333",
-                    }}
+                    className={`px-3 py-1.5 border border-[#ccc] rounded-md cursor-pointer ${
+                      activeTrack === trackName
+                        ? "bg-[#2563eb] text-white"
+                        : "bg-white text-[#333]"
+                    }`}
                   >
                     {trackName}
                   </button>
@@ -95,32 +85,25 @@ function StudyPlan() {
       .then((data) => setPlan(data));
   }, []);
 
-  if (!plan) return <div style={{ padding: 20 }}>جاري التحميل...</div>;
+  if (!plan) return <div className="p-5">جاري التحميل...</div>;
 
   return (
-    <div style={{ flex: 1, padding: 20, fontFamily: "sans-serif", direction: "rtl" }}>
+    <div className="flex-1 p-5 font-sans" dir="rtl">
       <Link to="/">⬅ الرجوع للرئيسية</Link>
       <h1>📋 الخطة الدراسية</h1>
 
       {plan.years.map((y) => (
-        <div key={y.year} style={{ marginBottom: 12, border: "1px solid #ddd", borderRadius: 8 }}>
+        <div key={y.year} className="mb-3 border border-[#ddd] rounded-lg">
           <div
             onClick={() => setOpenYear(openYear === y.year ? null : y.year)}
-            style={{
-              padding: 14,
-              background: "#f3f4f6",
-              cursor: "pointer",
-              fontWeight: "bold",
-              display: "flex",
-              justifyContent: "space-between",
-            }}
+            className="p-3.5 bg-[#f3f4f6] cursor-pointer font-bold flex justify-between"
           >
             <span>السنة {y.year}</span>
             <span>{openYear === y.year ? "▲" : "▼"}</span>
           </div>
 
           {openYear === y.year && (
-            <div style={{ padding: 10 }}>
+            <div className="p-2.5">
               {y.levels.map((lvl) => (
                 <LevelBlock key={lvl.level} lvl={lvl} />
               ))}
