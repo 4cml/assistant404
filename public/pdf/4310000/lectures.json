@@ -2,13 +2,11 @@
   {
     "type": "theory",
     "title": "كامل الرياضيات",
-    "week": 1,
     "file": "pdf/4310000/theory/Math_all.pdf"
   },
   {
     "type": "theory",
     "title":"المحاضرة 1 - رياضيات",
-    "week":1,
     "file": "pdf/4310000/theory/Math_lech1.pdf"
   }
 ]

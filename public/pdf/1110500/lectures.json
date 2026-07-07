@@ -1,0 +1,47 @@
+[
+  {
+    "type": "theory",
+    "title": "المحاضرة 1 - مهارات الحاسوب",
+    "file": "pdf/1110500/theory/QPU Computer SKills Arabic Lecture 1 (1).pdf"
+  },
+  {
+    "type": "theory",
+    "title": "المحاضرة 2 - مهارات الحاسوب",
+    "file": "pdf/1110500/theory/QPU Computer SKills Arabic Lecture 2.pdf"
+  },
+  {
+    "type": "theory",
+    "title": "المحاضرة 3 - مهارات الحاسوب",
+    "file": "pdf/1110500/theory/QPU_Computer_SKills_Arabic_Lecture_3_Numbering_Systems_&_Data_Representation.pdf"
+  },
+  {
+    "type": "theory",
+    "title": "المحاضرة 4 - مهارات الحاسوب",
+    "file": "pdf/1110500/theory/QPU Computer SKills Arabic Lecture _  Software Components.pdf"
+  },
+  {
+    "type": "lab",
+    "title": "العملي 5 - أنظمة التشغيل",
+    "file": "pdf/1110500/lab/QPU Computer SKills Arabic Lecture _ Windows OS.pdf"
+  },
+  {
+    "type": "lab",
+    "title": "العملي 6 - برنامج الوورد",
+    "file": "pdf/1110500/lab/QPU Computer SKills Arabic Lecture _ MS Word.pdf"
+  },
+  {
+    "type": "lab",
+    "title": "العملي 7 - برنامج الإكسل",
+    "file": "pdf/1110500/lab/QPU Computer SKills Arabic Excel.pdf"
+  },
+  {
+    "type": "lab",
+    "title": "العملي 8 - برنامج الباوربوينت",
+    "file": "pdf/1110500/lab/QPU Computer SKills Arabic Lecture 8.pdf"
+  },
+  {
+    "type": "theory",
+    "title": "المحاضرة 9 - مهارات الحاسوب",
+    "file": "pdf/1110500/theory/QPU Computer SKills Arabic Lecture 9.pdf"
+  }
+]
