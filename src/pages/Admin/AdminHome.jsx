@@ -1,38 +1,32 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom"; // عدّل حسب مكتبة التوجيه الفعلية بالمشروع
+import { Link } from "react-router-dom";
 import {
-  loadStudyPlan,
-  setHidden,
-  deleteSubject,
+  initAdminData,
+  flattenCourses,
+  setCourseHidden,
   downloadChanges,
   getState,
 } from "../../lib/adminStore";
 import "./AdminHome.css";
 
 /**
- * AdminHome.jsx
- * -----------------------------------------------------------------------
- * شاشة "قائمة كل المواد" — أول شاشة بلوحة التحكم.
- * تعرض كل مادة مع أزرار: تعديل / إخفاء / حذف، وزر عام لتنزيل التغييرات
- * (لأن الموقع Static بدون خادم — راجع القيد المعماري بخطة الفريق).
+ * AdminHome.jsx — قائمة كل الكورسات (مبنية على study-plan.json الحقيقي).
  *
- * ⚠️ يفترض هذا الملف بنية study-plan.json كمصفوفة مواد بالشكل:
- *   [{ id, name, section, hidden }, ...]
- * إن كانت البنية الفعلية مختلفة (مثلاً مجمّعة بحسب section)، يحتاج
- * تعديل بسيط بمنطق التجميع أدناه فقط — لا يمس بقية الملف.
- * -----------------------------------------------------------------------
+ * ملاحظة مهمة: أغلب الكورسات بالخطة الدراسية (~50) ما عندها محتوى فعلي
+ * مرفوع (مجرد سطر بالخطة الدراسية). بس 7 منها فيها فعلياً lectures.json
+ * بمجلد public/pdf/. الشارة "بدون محتوى" تُبيّن هذا الفرق بوضوح.
  */
 
 export default function AdminHome() {
-  const [subjects, setSubjects] = useState([]);
+  const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pendingCount, setPendingCount] = useState(0);
-  const [filter, setFilter] = useState("all"); // all | visible | hidden
+  const [filter, setFilter] = useState("all"); // all | visible | hidden | withContent
 
   useEffect(() => {
-    loadStudyPlan()
-      .then((data) => setSubjects(data))
+    initAdminData()
+      .then(() => setCourses(flattenCourses()))
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, []);
@@ -40,38 +34,30 @@ export default function AdminHome() {
   const refreshDirtyCount = () => setPendingCount(getState().dirty.size);
 
   const grouped = useMemo(() => {
-    const bySection = {};
-    for (const subj of subjects) {
-      if (filter === "visible" && subj.hidden) continue;
-      if (filter === "hidden" && !subj.hidden) continue;
-      const key = subj.section || "غير مصنّف";
-      if (!bySection[key]) bySection[key] = [];
-      bySection[key].push(subj);
-    }
-    return bySection;
-  }, [subjects, filter]);
+    const byLevel = {};
+    for (const c of courses) {
+      if (filter === "visible" && c.hidden) continue;
+      if (filter === "hidden" && !c.hidden) continue;
+      if (filter === "withContent" && !c.hasContent) continue;
 
-  function handleToggleHidden(subject) {
+      const key = `${c.semesterLabel}${c.track ? ` — ${c.track}` : ""}`;
+      if (!byLevel[key]) byLevel[key] = [];
+      byLevel[key].push(c);
+    }
+    return byLevel;
+  }, [courses, filter]);
+
+  function handleToggleHidden(course) {
     try {
-      const next = !subject.hidden;
-      setHidden("subject", subject.id, next);
-      setSubjects((prev) =>
-        prev.map((s) => (s.id === subject.id ? { ...s, hidden: next } : s))
+      const next = !course.hidden;
+      setCourseHidden(course.id, next);
+      setCourses((prev) =>
+        prev.map((c) => (c.id === course.id ? { ...c, hidden: next } : c))
       );
       refreshDirtyCount();
     } catch (err) {
       setError(err.message);
     }
-  }
-
-  function handleDelete(subject) {
-    const confirmed = window.confirm(
-      `متأكد تبي تحذف "${subject.name}"؟ الحذف الفعلي من public/ يصير يدوياً بعد التنزيل ومراجعة العضو 4.`
-    );
-    if (!confirmed) return;
-    deleteSubject(subject.id);
-    setSubjects((prev) => prev.filter((s) => s.id !== subject.id));
-    refreshDirtyCount();
   }
 
   function handleDownload() {
@@ -81,36 +67,29 @@ export default function AdminHome() {
 
   if (loading) return <div className="admin-state">جارِ التحميل…</div>;
   if (error)
-    return (
-      <div className="admin-state admin-state--error">
-        حصل خطأ: {error}
-      </div>
-    );
+    return <div className="admin-state admin-state--error">حصل خطأ: {error}</div>;
 
   return (
     <div className="admin-home">
       <header className="admin-home__header">
         <div>
-          <h1>لوحة التحكم — كل المواد</h1>
+          <h1>لوحة التحكم — كل الكورسات</h1>
           <p className="admin-home__hint">
-            هذه الأداة تعمل محلياً فقط. أي تعديل هنا يحتاج تنزيل الملفات
-            ووضعها يدوياً بمكانها، ثم عمل commit.
+            هذه الأداة تعمل محلياً فقط. أي تعديل يحتاج تنزيل الملفات ووضعها
+            يدوياً بمكانها، ثم عمل commit. الكورسات "بدون محتوى" هي مجرد
+            سطر بالخطة الدراسية، ما فيها ملفات مرفوعة بعد.
           </p>
         </div>
-        <div className="admin-home__actions">
-          <Link to="/admin/subjects/new" className="btn btn--primary">
-            + مادة جديدة
-          </Link>
-          <Link to="/admin/sections" className="btn">
-            إدارة الأقسام
-          </Link>
-        </div>
+        <Link to="/admin/subjects/new" className="btn btn--primary">
+          + كورس جديد
+        </Link>
       </header>
 
       <div className="admin-home__toolbar">
         <div className="admin-home__filters">
           {[
             ["all", "الكل"],
+            ["withContent", "فيها محتوى فقط"],
             ["visible", "الظاهرة فقط"],
             ["hidden", "المخفية فقط"],
           ].map(([value, label]) => (
@@ -124,60 +103,41 @@ export default function AdminHome() {
           ))}
         </div>
 
-        <button
-          className="btn btn--accent"
-          onClick={handleDownload}
-          disabled={pendingCount === 0}
-        >
+        <button className="btn btn--accent" onClick={handleDownload} disabled={pendingCount === 0}>
           تنزيل التغييرات {pendingCount > 0 ? `(${pendingCount})` : ""}
         </button>
       </div>
 
       {Object.keys(grouped).length === 0 && (
-        <div className="admin-empty">
-          لا توجد مواد تطابق هذا الفلتر.
-        </div>
+        <div className="admin-empty">لا توجد كورسات تطابق هذا الفلتر.</div>
       )}
 
-      {Object.entries(grouped).map(([sectionName, items]) => (
-        <section key={sectionName} className="admin-section-group">
-          <h2 className="admin-section-group__title">{sectionName}</h2>
+      {Object.entries(grouped).map(([groupLabel, items]) => (
+        <section key={groupLabel} className="admin-section-group">
+          <h2 className="admin-section-group__title">{groupLabel}</h2>
           <ul className="admin-subject-list">
-            {items.map((subject) => (
+            {items.map((course) => (
               <li
-                key={subject.id}
-                className={`admin-subject-row ${
-                  subject.hidden ? "admin-subject-row--hidden" : ""
-                }`}
+                key={`${course.id}-${course.track || ""}`}
+                className={`admin-subject-row ${course.hidden ? "admin-subject-row--hidden" : ""}`}
               >
                 <div className="admin-subject-row__info">
-                  <span className="admin-subject-row__name">
-                    {subject.name}
-                  </span>
-                  <span className="admin-subject-row__id">{subject.id}</span>
-                  {subject.hidden && (
-                    <span className="badge badge--hidden">مخفية</span>
+                  <span className="admin-subject-row__name">{course.name}</span>
+                  <span className="admin-subject-row__id">{course.id}</span>
+                  {!course.hasContent && (
+                    <span className="badge" style={{ background: "rgba(107,114,128,0.15)", color: "#6b7280" }}>
+                      بدون محتوى
+                    </span>
                   )}
+                  {course.hidden && <span className="badge badge--hidden">مخفية</span>}
                 </div>
 
                 <div className="admin-subject-row__actions">
-                  <Link
-                    to={`/admin/subjects/${subject.id}`}
-                    className="btn btn--sm"
-                  >
+                  <Link to={`/admin/subjects/${course.id}`} className="btn btn--sm">
                     تعديل
                   </Link>
-                  <button
-                    className="btn btn--sm"
-                    onClick={() => handleToggleHidden(subject)}
-                  >
-                    {subject.hidden ? "إظهار" : "إخفاء"}
-                  </button>
-                  <button
-                    className="btn btn--sm btn--danger"
-                    onClick={() => handleDelete(subject)}
-                  >
-                    حذف
+                  <button className="btn btn--sm" onClick={() => handleToggleHidden(course)}>
+                    {course.hidden ? "إظهار" : "إخفاء"}
                   </button>
                 </div>
               </li>

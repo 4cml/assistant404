@@ -3,65 +3,75 @@
  * -----------------------------------------------------------------------
  * منطق القراءة/الكتابة لبيانات لوحة التحكم الإدارية (Admin Panel).
  *
- * ⚠️ افتراضات مبدئية (لأنني لم أطّلع على الملفات الفعلية بعد):
- *   1. كل مادة مخزّنة بمجلد: public/subjects/{subjectId}/subject.json
- *   2. المحاضرات: public/subjects/{subjectId}/lectures.json
- *      (أو lectures-{professorId}.json حسب مخطط العضو 2 لاحقاً)
- *   3. قائمة المواد الكلية تُقرأ من: public/study-plan.json
- *   4. حقل "hidden": true/false موحّد على مستوى (مادة / قسم / عنصر محاضرة)
- *      حسب ما ورد في خطة الفريق — يجب التأكد من هذا مع العضو 4.
- *   5. بما أن الموقع Static (بدون خادم)، لا يوجد كتابة مباشرة على القرص.
- *      كل "حفظ" هنا يعني: تحديث نسخة الحالة في الذاكرة (in-memory state)
- *      ثم توليد ملف JSON جاهز للتنزيل ليضعه صاحب المشروع يدوياً في مكانه.
+ * ✅ هذه النسخة مبنية على الملفات الحقيقية اللي تم رفعها والتحقق منها مباشرة
+ * (study-plan.json, subjects-index.json, lectures.json + هيكل public/ الفعلي
+ * عبر أمر tree). النسخة السابقة كانت مبنية على افتراضات غلط بالكامل.
  *
- * عدّل هذه الافتراضات فور تأكيدها من العضو 4 (schema) والعضو 2 (professorVariants).
+ * البنية الحقيقية المؤكدة:
+ *   - public/data/study-plan.json  → { years: [{ year, levels: [{ level,
+ *     semesterLabel, courses?: [...], tracks?: {trackName: [...]}, totalHours }] }] }
+ *     كل عنصر كورس: { id, name, code, hours, subjectSlug?, hidden? }
+ *   - public/data/subjects-index.json → مصفوفة slugs للمواد اللي عندها
+ *     محتوى فعلي مرفوع (public/pdf/{slug}/lectures.json موجود فعلاً)
+ *   - public/pdf/{slug}/lectures.json → مصفوفة مسطّحة:
+ *     [{ type: "theory"|"lab", title, file }, ...]  (بدون غلاف كائن)
+ *   - لا يوجد subject.json منفصل لأي مادة إطلاقاً.
+ *
+ * ⚠️ حقلين غير موجودين فعلياً بأي ملف حقيقي حالياً، وهذي النسخة تضيفهم
+ * كاقتراح تصميم مؤقت فقط (يحتاج تأكيد/تنسيق مع العضو 2 والعضو 4 قبل
+ * الاعتماد النهائي):
+ *   1. "hidden" على كائن الكورس بـ study-plan.json مباشرة (مو ملف منفصل،
+ *      لأنه لا يوجد subject.json أصلاً لنضع الحقل فيه).
+ *   2. "professorVariants" على نفس كائن الكورس بـ study-plan.json (بدل
+ *      subject.json المفترض بالخطة الأصلية، لعدم وجوده فعلياً).
+ *   كذلك "hidden" على مستوى المحاضرة الواحدة بـ lectures.json — إضافة جديدة
+ *   غير موجودة حالياً، تحتاج تعديل مقابل بصفحة العرض (Subject.jsx) من
+ *   العضو 4/2 حتى تُستبعد المحاضرات المخفية فعلياً بالعرض العام.
+ *
+ * ⚠️ لا نفترض وجود src/lib/paths.js أو دالة withBase — لم يتم التأكد من
+ * وجودها. نستخدم import.meta.env.BASE_URL مباشرة (طريقة Vite القياسية،
+ * تعمل بشكل مضمون بالتطوير والإنتاج تحت أي base مخصص).
  * -----------------------------------------------------------------------
  */
+
+const BASE = import.meta.env.BASE_URL; // مثال: "/assistant404/"
+
+function assetUrl(relativePath) {
+  // relativePath بدون "/" بالبداية، مثال: "data/study-plan.json"
+  return `${BASE}${relativePath}`.replace(/\/{2,}/g, "/").replace(/^\/?/, "/");
+}
 
 // ------------------------------------------------------------------
 // 1) تحميل البيانات (قراءة فقط من الملفات العامة)
 // ------------------------------------------------------------------
 
-/**
- * يجلب قائمة المواد الكاملة من study-plan.json
- * @returns {Promise<Array>} قائمة المواد بصيغتها الخام
- */
 export async function loadStudyPlan() {
-  const res = await fetch("/study-plan.json");
-  if (!res.ok) throw new Error("تعذر تحميل study-plan.json");
+  const res = await fetch(assetUrl("data/study-plan.json"));
+  if (!res.ok) throw new Error("تعذر تحميل data/study-plan.json");
   return res.json();
 }
 
-/**
- * يجلب ملف subject.json لمادة معينة
- * @param {string} subjectId
- */
-export async function loadSubject(subjectId) {
-  const res = await fetch(`/subjects/${subjectId}/subject.json`);
-  if (!res.ok) throw new Error(`تعذر تحميل subject.json لـ ${subjectId}`);
+export async function loadSubjectsIndex() {
+  const res = await fetch(assetUrl("data/subjects-index.json"));
+  if (!res.ok) throw new Error("تعذر تحميل data/subjects-index.json");
   return res.json();
 }
 
-/**
- * يجلب ملف المحاضرات لمادة معينة (أو لدكتور محدد إن وُجد professorVariants)
- * @param {string} subjectId
- * @param {string} [lecturesFile] اسم الملف إن كان مختلفاً عن lectures.json الافتراضي
- */
-export async function loadLectures(subjectId, lecturesFile = "lectures.json") {
-  const res = await fetch(`/subjects/${subjectId}/${lecturesFile}`);
-  if (!res.ok) throw new Error(`تعذر تحميل ${lecturesFile} لـ ${subjectId}`);
+export async function loadLectures(slug) {
+  const res = await fetch(assetUrl(`pdf/${slug}/lectures.json`));
+  if (!res.ok) throw new Error(`تعذر تحميل lectures.json لـ ${slug}`);
   return res.json();
 }
 
 // ------------------------------------------------------------------
-// 2) الحالة الداخلية للوحة (in-memory) + دفتر التغييرات (changeset)
+// 2) الحالة الداخلية (in-memory) + دفتر التغييرات
 // ------------------------------------------------------------------
 
 let state = {
-  studyPlan: null,       // نسخة معدَّلة من study-plan.json
-  subjectsCache: {},     // { [subjectId]: subjectJsonObject }
-  lecturesCache: {},     // { [cacheKey]: lecturesJsonObject }
-  dirty: new Set(),      // مفاتيح الملفات التي تغيّرت ولم تُصدَّر بعد
+  studyPlan: null,
+  subjectsIndex: [],
+  lecturesCache: {}, // { [slug]: Array }
+  dirty: new Set(),  // "study-plan" | `lectures:${slug}`
 };
 
 export function getState() {
@@ -73,23 +83,251 @@ function markDirty(key) {
 }
 
 /**
- * يرجّع نسخة المادة من الكاش إن وُجدت، وإلا يحمّلها من public/ ويكشّها.
- * تُستخدم بشاشة AdminSubjectEditor عند فتح مادة موجودة مسبقاً.
- * @param {string} subjectId
+ * يحمّل كل شي مرة وحدة ويخزّنه بالحالة الداخلية. يُستدعى أول ما تفتح
+ * أي شاشة بلوحة التحكم.
  */
-export async function getOrLoadSubject(subjectId) {
-  if (state.subjectsCache[subjectId]) return state.subjectsCache[subjectId];
-  const data = await loadSubject(subjectId);
-  state.subjectsCache[subjectId] = data;
+export async function initAdminData() {
+  const [studyPlan, subjectsIndex] = await Promise.all([
+    loadStudyPlan(),
+    loadSubjectsIndex(),
+  ]);
+  state.studyPlan = studyPlan;
+  state.subjectsIndex = subjectsIndex;
+  return state;
+}
+
+// ------------------------------------------------------------------
+// 3) تسطيح المواد للعرض بالقائمة (AdminHome)
+// ------------------------------------------------------------------
+
+/**
+ * يحوّل بنية study-plan.json المتداخلة إلى مصفوفة مسطّحة سهلة العرض،
+ * مع الاحتفاظ بموقع كل عنصر (سنة/مستوى/مسار تخصص إن وُجد).
+ */
+export function flattenCourses(studyPlan = state.studyPlan) {
+  if (!studyPlan?.years) return [];
+  const flat = [];
+
+  for (const y of studyPlan.years) {
+    for (const lvl of y.levels) {
+      const pushCourse = (course, trackName = null) => {
+        const contentSlug = course.subjectSlug || course.id;
+        flat.push({
+          ...course,
+          year: y.year,
+          level: lvl.level,
+          semesterLabel: lvl.semesterLabel,
+          track: trackName,
+          hasContent: state.subjectsIndex.includes(contentSlug),
+          contentSlug,
+        });
+      };
+
+      if (Array.isArray(lvl.courses)) {
+        lvl.courses.forEach((c) => pushCourse(c));
+      }
+      if (lvl.tracks) {
+        Object.entries(lvl.tracks).forEach(([trackName, courses]) => {
+          courses.forEach((c) => pushCourse(c, trackName));
+        });
+      }
+    }
+  }
+
+  return flat;
+}
+
+/**
+ * يرجّع كل الكائنات المرجعية (references) بالشجرة الأصلية اللي تطابق id
+ * معيّن. قد يكون أكثر من موقع لو نفس الكورس مشترك بين عدة مسارات تخصص
+ * (تكرار id مقصود بالبيانات الحقيقية، مثال: "0730511" بثلاث مسارات).
+ * تعديل كل هذي النسخ معاً يبقيها متسقة.
+ */
+function findCourseRefs(courseId) {
+  const refs = [];
+  if (!state.studyPlan?.years) return refs;
+
+  for (const y of state.studyPlan.years) {
+    for (const lvl of y.levels) {
+      if (Array.isArray(lvl.courses)) {
+        lvl.courses.forEach((c) => {
+          if (c.id === courseId) refs.push(c);
+        });
+      }
+      if (lvl.tracks) {
+        Object.values(lvl.tracks).forEach((courses) => {
+          courses.forEach((c) => {
+            if (c.id === courseId) refs.push(c);
+          });
+        });
+      }
+    }
+  }
+  return refs;
+}
+
+/**
+ * يرجّع أول نسخة من كورس معيّن (لعرضها بنموذج التعديل) + عدد كل النسخ
+ * المكرَّرة (لتنبيه المستخدم لو أكثر من مسار).
+ */
+export function getCourse(courseId) {
+  const refs = findCourseRefs(courseId);
+  if (refs.length === 0) return null;
+  return { course: refs[0], occurrences: refs.length };
+}
+
+// ------------------------------------------------------------------
+// 4) تعديل بيانات الكورس (اسم / رمز / ساعات / hidden / professorVariants)
+// ------------------------------------------------------------------
+
+export function updateCourseMeta(courseId, updates) {
+  const refs = findCourseRefs(courseId);
+  if (refs.length === 0) throw new Error(`كورس غير موجود: ${courseId}`);
+  refs.forEach((c) => Object.assign(c, updates));
+  markDirty("study-plan");
+  return refs[0];
+}
+
+export function setCourseHidden(courseId, hidden) {
+  return updateCourseMeta(courseId, { hidden });
+}
+
+/**
+ * إضافة كورس جديد لمستوى (level) موجود ضمن سنة (year) موجودة.
+ * لا يدعم الإضافة داخل tracks حالياً (يحتاج تحديد اسم المسار أيضاً،
+ * أُبقيه لتوسعة لاحقة عند الحاجة الفعلية).
+ */
+export function addCourseToLevel({ year, level, id, name, code = "", hours = 3 }) {
+  const y = state.studyPlan.years.find((yy) => yy.year === year);
+  if (!y) throw new Error(`سنة غير موجودة: ${year}`);
+  const lvl = y.levels.find((l) => l.level === level);
+  if (!lvl) throw new Error(`مستوى غير موجود: ${level}`);
+  if (!Array.isArray(lvl.courses)) lvl.courses = [];
+
+  if (lvl.courses.some((c) => c.id === id)) {
+    throw new Error(`يوجد كورس بنفس المعرّف مسبقاً بهذا المستوى: ${id}`);
+  }
+
+  const newCourse = { id, name, code, hours };
+  lvl.courses.push(newCourse);
+  markDirty("study-plan");
+  return newCourse;
+}
+
+// ------------------------------------------------------------------
+// 5) إدارة professorVariants (مقترح مؤقت — يُخزَّن على كائن الكورس نفسه
+//    بـ study-plan.json، بانتظار تأكيد مكانه النهائي مع العضو 2/4)
+// ------------------------------------------------------------------
+
+function ensureVariantsArray(course) {
+  if (!Array.isArray(course.professorVariants)) course.professorVariants = [];
+  return course.professorVariants;
+}
+
+export function addProfessorVariant(courseId, variant) {
+  const refs = findCourseRefs(courseId);
+  if (refs.length === 0) throw new Error(`كورس غير موجود: ${courseId}`);
+  const variants = ensureVariantsArray(refs[0]);
+
+  if (variants.some((v) => v.professorId === variant.professorId)) {
+    throw new Error(`الدكتور "${variant.professorId}" مضاف مسبقاً`);
+  }
+
+  const entry = {
+    professorId: variant.professorId,
+    professorName: variant.professorName,
+    active: variants.length === 0,
+    lecturesFile: variant.lecturesFile || `lectures-${variant.professorId}.json`,
+  };
+  variants.push(entry);
+
+  // نطبّق نفس التغيير على كل النسخ المكرَّرة (لو الكورس بأكثر من مسار)
+  refs.slice(1).forEach((c) => {
+    ensureVariantsArray(c).push({ ...entry });
+  });
+
+  markDirty("study-plan");
+  return variants;
+}
+
+export function setActiveProfessorVariant(courseId, professorId) {
+  const refs = findCourseRefs(courseId);
+  if (refs.length === 0) throw new Error(`كورس غير موجود: ${courseId}`);
+
+  refs.forEach((c) => {
+    const variants = ensureVariantsArray(c);
+    variants.forEach((v) => {
+      v.active = v.professorId === professorId;
+    });
+  });
+
+  markDirty("study-plan");
+  return ensureVariantsArray(refs[0]);
+}
+
+export function removeProfessorVariant(courseId, professorId) {
+  const refs = findCourseRefs(courseId);
+  if (refs.length === 0) throw new Error(`كورس غير موجود: ${courseId}`);
+
+  refs.forEach((c) => {
+    const variants = ensureVariantsArray(c);
+    const removedWasActive = variants.find((v) => v.professorId === professorId)?.active;
+    c.professorVariants = variants.filter((v) => v.professorId !== professorId);
+    if (removedWasActive && c.professorVariants.length > 0) {
+      c.professorVariants[0].active = true;
+    }
+  });
+
+  markDirty("study-plan");
+  return refs[0].professorVariants;
+}
+
+// ------------------------------------------------------------------
+// 6) إدارة المحاضرات (lectures.json) — لمواد فيها محتوى فعلي فقط
+// ------------------------------------------------------------------
+
+/**
+ * يجلب محاضرات مادة (من الكاش أو بتحميلها أول مرة)، ويربطها بمفتاح
+ * التتبع (dirty tracking) عشان أي تعديل عليها بعدين يُصدَّر صح.
+ */
+export async function getOrLoadLectures(slug) {
+  if (state.lecturesCache[slug]) return state.lecturesCache[slug];
+  const data = await loadLectures(slug);
+  state.lecturesCache[slug] = data;
   return data;
 }
 
 /**
- * يولّد slug صالح من اسم عربي/إنجليزي حر (id = slug، حسب الاعتماد النهائي للمشروع).
- * ملاحظة: التوليد التلقائي يعمل جيداً على مدخلات إنجليزية. للأسماء العربية فقط،
- * الناتج قد يطلع فاضي — بهالحالة الشاشة تسمح للمستخدم يكتب الـ slug يدوياً.
- * @param {string} rawName
+ * @param {"theory"|"lab"|"extra"|"exam"} type
  */
+export function addLecture(slug, { type, title, file }) {
+  const lectures = state.lecturesCache[slug];
+  if (!lectures) throw new Error(`لم تُحمَّل محاضرات ${slug} بعد`);
+  lectures.push({ type, title, file, hidden: false });
+  markDirty(`lectures:${slug}`);
+  return lectures;
+}
+
+export function setLectureHidden(slug, index, hidden) {
+  const lectures = state.lecturesCache[slug];
+  if (!lectures || !lectures[index]) throw new Error("محاضرة غير موجودة");
+  lectures[index].hidden = hidden;
+  markDirty(`lectures:${slug}`);
+  return lectures[index];
+}
+
+export function removeLecture(slug, index) {
+  const lectures = state.lecturesCache[slug];
+  if (!lectures || !lectures[index]) throw new Error("محاضرة غير موجودة");
+  lectures.splice(index, 1);
+  markDirty(`lectures:${slug}`);
+  return lectures;
+}
+
+// ------------------------------------------------------------------
+// 7) أدوات مساعدة عامة
+// ------------------------------------------------------------------
+
 export function generateSlug(rawName) {
   return rawName
     .toString()
@@ -102,187 +340,23 @@ export function generateSlug(rawName) {
 }
 
 // ------------------------------------------------------------------
-// 3) عمليات على المواد (Subjects)
+// 8) التصدير — بديل الحفظ المباشر (الموقع Static بدون خادم)
 // ------------------------------------------------------------------
 
-/**
- * إضافة مادة جديدة (تولّد subject.json + lectures.json فاضي كنموذج)
- * @param {{id: string, name: string, section?: string}} newSubjectInfo
- */
-export function addSubject({ id, name, section = "نظري" }) {
-  if (state.subjectsCache[id]) {
-    throw new Error(`المادة بمعرّف "${id}" موجودة مسبقاً`);
-  }
-
-  const subjectJson = {
-    id,
-    name,
-    section,
-    hidden: false,
-    lecturesFile: "lectures.json",
-  };
-
-  const lecturesJson = { subjectId: id, lectures: [] };
-
-  state.subjectsCache[id] = subjectJson;
-  state.lecturesCache[`${id}:lectures.json`] = lecturesJson;
-
-  markDirty(`subjects/${id}/subject.json`);
-  markDirty(`subjects/${id}/lectures.json`);
-
-  return { subjectJson, lecturesJson };
-}
-
-/**
- * تعديل بيانات مادة موجودة (اسم و/أو قسم). لا يغيّر الـ id عمداً —
- * تغيير id يعني فعلياً نقل مجلد كامل، وهذا خارج نطاق "تعديل" بسيط.
- * @param {string} subjectId
- * @param {{name?: string, section?: string}} updates
- */
-export function updateSubjectMeta(subjectId, updates) {
-  const subj = state.subjectsCache[subjectId];
-  if (!subj) throw new Error(`مادة غير موجودة: ${subjectId}`);
-  Object.assign(subj, updates);
-  markDirty(`subjects/${subjectId}/subject.json`);
-  return subj;
-}
-
-/**
- * تبديل حالة الإخفاء لأي عنصر (مادة / قسم / محاضرة) بشكل موحّد.
- * @param {"subject"|"section"|"lecture"} type
- * @param {string} targetId
- * @param {boolean} hidden
- */
-export function setHidden(type, targetId, hidden) {
-  if (type === "subject") {
-    const subj = state.subjectsCache[targetId];
-    if (!subj) throw new Error(`مادة غير موجودة: ${targetId}`);
-    subj.hidden = hidden;
-    markDirty(`subjects/${targetId}/subject.json`);
-    return subj;
-  }
-
-  // ملاحظة: منطق "section" و "lecture" يحتاج معرفة دقيقة لبنية
-  // SECTION_LABELS وبنية lectures.json الفعليتين — يُستكمل بعد
-  // مراجعة الملفات الحقيقية.
-  throw new Error(`نوع غير مدعوم بعد: ${type}`);
-}
-
-/**
- * حذف مادة (يزيلها من الحالة الداخلية فقط؛ الحذف الفعلي من public/
- * يتم يدوياً من صاحب المشروع بعد المراجعة)
- */
-export function deleteSubject(subjectId) {
-  delete state.subjectsCache[subjectId];
-  markDirty(`subjects/${subjectId}/subject.json`); // سيُصدَّر كـ "محذوف"
-}
-
-// ------------------------------------------------------------------
-// 3.5) إدارة professorVariants (ملكية بيانات فقط — المنطق الفعلي
-//      لاختيار/تصفية النسخة الفعّالة بصفحة العرض يبقى بملف
-//      src/lib/professorVariants.js الخاص بالعضو 2، لا نكرره هنا)
-// ------------------------------------------------------------------
-
-function ensureVariantsArray(subj) {
-  if (!Array.isArray(subj.professorVariants)) subj.professorVariants = [];
-  return subj.professorVariants;
-}
-
-/**
- * إضافة نسخة دكتور جديدة لمادة. أول نسخة تُضاف تصير active تلقائياً.
- * @param {string} subjectId
- * @param {{professorId: string, professorName: string, lecturesFile?: string}} variant
- */
-export function addProfessorVariant(subjectId, variant) {
-  const subj = state.subjectsCache[subjectId];
-  if (!subj) throw new Error(`مادة غير موجودة: ${subjectId}`);
-  const variants = ensureVariantsArray(subj);
-
-  if (variants.some((v) => v.professorId === variant.professorId)) {
-    throw new Error(`الدكتور "${variant.professorId}" مضاف مسبقاً لهذه المادة`);
-  }
-
-  variants.push({
-    professorId: variant.professorId,
-    professorName: variant.professorName,
-    active: variants.length === 0,
-    lecturesFile: variant.lecturesFile || `lectures-${variant.professorId}.json`,
-  });
-
-  markDirty(`subjects/${subjectId}/subject.json`);
-  return variants;
-}
-
-/**
- * تفعيل نسخة دكتور معينة (وإلغاء تفعيل البقية تلقائياً — نسخة فعّالة
- * واحدة فقط بنفس اللحظة، حسب تصميم العضو 2).
- * @param {string} subjectId
- * @param {string} professorId
- */
-export function setActiveProfessorVariant(subjectId, professorId) {
-  const subj = state.subjectsCache[subjectId];
-  if (!subj) throw new Error(`مادة غير موجودة: ${subjectId}`);
-  const variants = ensureVariantsArray(subj);
-
-  let found = false;
-  for (const v of variants) {
-    v.active = v.professorId === professorId;
-    if (v.active) found = true;
-  }
-  if (!found) throw new Error(`دكتور غير موجود بهذه المادة: ${professorId}`);
-
-  markDirty(`subjects/${subjectId}/subject.json`);
-  return variants;
-}
-
-/**
- * حذف نسخة دكتور. لو كانت هي الفعّالة، تُفعَّل أول نسخة متبقية تلقائياً
- * (لتفادي مادة بدون أي نسخة فعّالة، وهو وضع غير معرَّف بمنطق العرض).
- * @param {string} subjectId
- * @param {string} professorId
- */
-export function removeProfessorVariant(subjectId, professorId) {
-  const subj = state.subjectsCache[subjectId];
-  if (!subj) throw new Error(`مادة غير موجودة: ${subjectId}`);
-  const variants = ensureVariantsArray(subj);
-
-  const removedWasActive = variants.find((v) => v.professorId === professorId)?.active;
-  subj.professorVariants = variants.filter((v) => v.professorId !== professorId);
-
-  if (removedWasActive && subj.professorVariants.length > 0) {
-    subj.professorVariants[0].active = true;
-  }
-
-  markDirty(`subjects/${subjectId}/subject.json`);
-  return subj.professorVariants;
-}
-
-// ------------------------------------------------------------------
-// 4) التصدير — بديل الحفظ المباشر (الموقع Static بدون خادم)
-// ------------------------------------------------------------------
-
-/**
- * يولّد ملفات JSON محدثة لكل ما تغيّر، جاهزة للتنزيل.
- * يعيد مصفوفة { filename, content } ليعرضها Admin UI كأزرار تنزيل
- * أو نص جاهز للنسخ.
- */
 export function exportChanges() {
   const changes = [];
 
   for (const key of state.dirty) {
-    if (key.endsWith("subject.json")) {
-      const subjectId = key.split("/")[1];
-      const data = state.subjectsCache[subjectId];
+    if (key === "study-plan") {
       changes.push({
-        filename: key,
-        content: data ? JSON.stringify(data, null, 2) : null, // null = حذف
+        filename: "data/study-plan.json",
+        content: JSON.stringify(state.studyPlan, null, 2),
       });
-    } else if (key.endsWith("lectures.json")) {
-      const subjectId = key.split("/")[1];
-      const cacheKey = `${subjectId}:lectures.json`;
+    } else if (key.startsWith("lectures:")) {
+      const slug = key.slice("lectures:".length);
       changes.push({
-        filename: key,
-        content: JSON.stringify(state.lecturesCache[cacheKey], null, 2),
+        filename: `pdf/${slug}/lectures.json`,
+        content: JSON.stringify(state.lecturesCache[slug], null, 2),
       });
     }
   }
@@ -290,31 +364,24 @@ export function exportChanges() {
   return changes;
 }
 
-/**
- * ينزّل التغييرات كملفات فعلية عبر المتصفح (زر "تنزيل")
- */
 export function downloadChanges() {
   const changes = exportChanges();
   changes.forEach(({ filename, content }) => {
-    if (content === null) return; // تخطي المحذوفات، تُعرض بنص تحذيري فقط
     const blob = new Blob([content], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = filename.replace(/\//g, "__"); // تسطيح المسار لاسم ملف صالح
+    a.download = filename.replace(/\//g, "__");
     a.click();
     URL.revokeObjectURL(url);
   });
   state.dirty.clear();
 }
 
-/**
- * يصفّر الحالة بالكامل (مفيد عند إعادة تحميل اللوحة)
- */
 export function resetState() {
   state = {
     studyPlan: null,
-    subjectsCache: {},
+    subjectsIndex: [],
     lecturesCache: {},
     dirty: new Set(),
   };
