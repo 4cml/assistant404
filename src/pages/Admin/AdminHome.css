@@ -1,0 +1,184 @@
+/**
+ * AdminHome.css
+ * -----------------------------------------------------------------------
+ * ستايل شاشة قائمة المواد. يعتمد على متغيرات CSS التي يفترض العضو 3 إضافتها
+ * بـ src/index.css (راجع خطة الفريق):
+ *   --bg-color, --text-color, --border-color, --accent-color
+ * وضعت قيماً احتياطية (fallback) هنا حتى تعمل الشاشة حتى قبل اكتمال عمل
+ * العضو 3 على الوضع المظلم.
+ * -----------------------------------------------------------------------
+ */
+
+.admin-home {
+  --admin-bg: var(--bg-color, #ffffff);
+  --admin-fg: var(--text-color, #1a1a1a);
+  --admin-border: var(--border-color, #dddddd);
+  --admin-accent: var(--accent-color, #2563eb);
+
+  background: var(--admin-bg);
+  color: var(--admin-fg);
+  padding: 24px;
+  max-width: 960px;
+  margin: 0 auto;
+  direction: rtl;
+  font-family: inherit;
+}
+
+.admin-home__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.admin-home__hint {
+  font-size: 13px;
+  opacity: 0.7;
+  margin-top: 4px;
+  max-width: 480px;
+}
+
+.admin-home__actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.admin-home__toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 16px 0;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.admin-home__filters {
+  display: flex;
+  gap: 6px;
+}
+
+.chip {
+  border: 1px solid var(--admin-border);
+  background: transparent;
+  color: var(--admin-fg);
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.chip--active {
+  background: var(--admin-accent);
+  color: #ffffff;
+  border-color: var(--admin-accent);
+}
+
+.btn {
+  border: 1px solid var(--admin-border);
+  background: transparent;
+  color: var(--admin-fg);
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.btn--sm {
+  padding: 4px 10px;
+  font-size: 13px;
+}
+
+.btn--primary,
+.btn--accent {
+  background: var(--admin-accent);
+  border-color: var(--admin-accent);
+  color: #ffffff;
+}
+
+.btn--danger {
+  border-color: #dc2626;
+  color: #dc2626;
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.admin-section-group {
+  margin-bottom: 24px;
+}
+
+.admin-section-group__title {
+  font-size: 16px;
+  border-bottom: 1px solid var(--admin-border);
+  padding-bottom: 6px;
+  margin-bottom: 8px;
+}
+
+.admin-subject-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.admin-subject-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.admin-subject-row--hidden {
+  opacity: 0.55;
+}
+
+.admin-subject-row__info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-subject-row__name {
+  font-weight: 600;
+}
+
+.admin-subject-row__id {
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+.admin-subject-row__actions {
+  display: flex;
+  gap: 6px;
+}
+
+.badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.badge--hidden {
+  background: rgba(220, 38, 38, 0.12);
+  color: #dc2626;
+}
+
+.admin-state,
+.admin-empty {
+  padding: 40px;
+  text-align: center;
+  opacity: 0.7;
+}
+
+.admin-state--error {
+  color: #dc2626;
+}
