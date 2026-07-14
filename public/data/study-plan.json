@@ -23,8 +23,7 @@
               "id": "math-1",
               "name": "رياضيات (1)",
               "code": "4310000",
-              "hours": 4,
-              "hidden": true
+              "hours": 4
             },
             {
               "id": "4110000",
