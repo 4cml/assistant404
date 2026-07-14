@@ -1,4 +1,13 @@
 [
-  { "type": "theory", "title": "كامل الرياضيات", "file": "pdf/math-1/theory/Math_all.pdf" },
-  { "type": "theory", "title": "المحاضرة 1 - رياضيات", "file": "pdf/math-1/theory/Math_lech1.pdf" }
+  {
+    "type": "theory",
+    "title": "كامل الرياضيات",
+    "file": "pdf/math-1/theory/Math_all.pdf"
+  },
+  {
+    "type": "theory",
+    "title": "المحاضرة 1 - رياضيات",
+    "file": "pdf/math-1/theory/Math_lech1.pdf",
+    "hidden": true
+  }
 ]
