@@ -34,6 +34,13 @@
  * -----------------------------------------------------------------------
  */
 
+import {
+  getGithubToken,
+  fetchFileFromGitHub,
+  commitFileToGitHub,
+  validateJsonBeforeCommit,
+} from "./githubSync";
+
 const BASE = import.meta.env.BASE_URL; // مثال: "/assistant404/"
 
 function assetUrl(relativePath) {
@@ -349,13 +356,13 @@ export function exportChanges() {
   for (const key of state.dirty) {
     if (key === "study-plan") {
       changes.push({
-        filename: "data/study-plan.json",
+        filename: "public/data/study-plan.json",
         content: JSON.stringify(state.studyPlan, null, 2),
       });
     } else if (key.startsWith("lectures:")) {
       const slug = key.slice("lectures:".length);
       changes.push({
-        filename: `pdf/${slug}/lectures.json`,
+        filename: `public/pdf/${slug}/lectures.json`,
         content: JSON.stringify(state.lecturesCache[slug], null, 2),
       });
     }
@@ -376,6 +383,76 @@ export function downloadChanges() {
     URL.revokeObjectURL(url);
   });
   state.dirty.clear();
+}
+
+/**
+ * يحدد schema المطابق لاسم ملف، لتمريره لـ validateJsonBeforeCommit.
+ */
+function schemaTypeForFilename(filename) {
+  if (filename.endsWith("study-plan.json")) return "study-plan";
+  if (filename.endsWith("lectures.json")) return "lectures";
+  return null;
+}
+
+/**
+ * الحفظ الموحّد: يحاول commit مباشر بـ GitHub لو فيه توكن، وإلا (أو لو فشل
+ * الاتصال) يرجع تلقائياً لآلية "تنزيل JSON يدوي" كـ fallback آمن.
+ *
+ * @param {(status: string) => void} onStatus استدعاء تحديثات الحالة للواجهة
+ * @returns {Promise<{mode: "github"|"download", results?: any[]}>}
+ */
+export async function saveChanges(onStatus = () => {}) {
+  const token = getGithubToken();
+  const changes = exportChanges();
+
+  if (changes.length === 0) {
+    onStatus("لا توجد تغييرات للحفظ.");
+    return { mode: "none" };
+  }
+
+  if (!token) {
+    onStatus("لا يوجد توكن — جاري التنزيل اليدوي بدل النشر المباشر...");
+    downloadChanges();
+    onStatus("تم تنزيل الملفات. ضعها بمكانها يدوياً وارفعها بـ commit.");
+    return { mode: "download" };
+  }
+
+  onStatus("جاري الحفظ...");
+  const results = [];
+
+  try {
+    for (const { filename, content } of changes) {
+      const schemaType = schemaTypeForFilename(filename);
+      if (schemaType) {
+        const { valid, error } = validateJsonBeforeCommit(content, schemaType);
+        if (!valid) {
+          throw new Error(`فشل التحقق من "${filename}" قبل الحفظ: ${error}`);
+        }
+      }
+
+      onStatus(`جاري جلب النسخة الحالية لـ ${filename}...`);
+      const { sha } = await fetchFileFromGitHub(filename, token);
+
+      onStatus(`جاري رفع ${filename}...`);
+      const result = await commitFileToGitHub(
+        filename,
+        content,
+        sha,
+        token,
+        `chore(admin): تحديث ${filename} عبر لوحة التحكم`
+      );
+      results.push(result);
+    }
+
+    state.dirty.clear();
+    onStatus("تم الحفظ، جاري النشر (قد يستغرق دقيقة أو دقيقتين)...");
+    return { mode: "github", results };
+  } catch (err) {
+    onStatus(`فشل النشر المباشر: ${err.message} — جاري التنزيل اليدوي كبديل...`);
+    downloadChanges();
+    onStatus("تم تنزيل الملفات كبديل. ضعها بمكانها يدوياً وارفعها بـ commit.");
+    throw err;
+  }
 }
 
 export function resetState() {

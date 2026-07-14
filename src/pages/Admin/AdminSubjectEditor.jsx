@@ -14,8 +14,10 @@ import {
   addLecture,
   setLectureHidden,
   removeLecture,
+  saveChanges,
   getState,
 } from "../../lib/adminStore";
+import AdminTokenGate from "./AdminTokenGate";
 import "./AdminHome.css";
 
 /**
@@ -50,6 +52,7 @@ export default function AdminSubjectEditor() {
   const [occurrences, setOccurrences] = useState(1);
   const [lectures, setLectures] = useState(null);
   const [pendingCount, setPendingCount] = useState(0);
+  const [saveStatus, setSaveStatus] = useState(null);
 
   // نموذج كورس جديد
   const [newYear, setNewYear] = useState(1);
@@ -228,9 +231,20 @@ export default function AdminSubjectEditor() {
     }
   }
 
+  async function handleSave() {
+    try {
+      await saveChanges(setSaveStatus);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      refreshDirtyCount();
+    }
+  }
+
   if (loading) return <div className="admin-state">جارِ التحميل…</div>;
 
   return (
+    <AdminTokenGate>
     <div className="admin-home">
       <header className="admin-home__header">
         <div>
@@ -419,8 +433,17 @@ export default function AdminSubjectEditor() {
       )}
 
       <div className="admin-home__toolbar">
-        <Link to="/admin" className="btn">الذهاب لتنزيل التغييرات ({pendingCount})</Link>
+        <button className="btn btn--accent" onClick={handleSave} disabled={pendingCount === 0}>
+          حفظ ونشر ({pendingCount})
+        </button>
       </div>
+
+      {saveStatus && (
+        <div className="admin-empty" style={{ background: "rgba(37,99,235,0.08)", color: "#2563eb", textAlign: "right", padding: 10 }}>
+          {saveStatus}
+        </div>
+      )}
     </div>
+    </AdminTokenGate>
   );
 }

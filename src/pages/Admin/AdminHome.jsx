@@ -4,9 +4,10 @@ import {
   initAdminData,
   flattenCourses,
   setCourseHidden,
-  downloadChanges,
+  saveChanges,
   getState,
 } from "../../lib/adminStore";
+import AdminTokenGate from "./AdminTokenGate";
 import "./AdminHome.css";
 
 /**
@@ -22,6 +23,7 @@ export default function AdminHome() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pendingCount, setPendingCount] = useState(0);
+  const [saveStatus, setSaveStatus] = useState(null);
   const [filter, setFilter] = useState("all"); // all | visible | hidden | withContent
 
   useEffect(() => {
@@ -60,9 +62,14 @@ export default function AdminHome() {
     }
   }
 
-  function handleDownload() {
-    downloadChanges();
-    refreshDirtyCount();
+  async function handleSave() {
+    try {
+      await saveChanges(setSaveStatus);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      refreshDirtyCount();
+    }
   }
 
   if (loading) return <div className="admin-state">جارِ التحميل…</div>;
@@ -70,6 +77,7 @@ export default function AdminHome() {
     return <div className="admin-state admin-state--error">حصل خطأ: {error}</div>;
 
   return (
+    <AdminTokenGate>
     <div className="admin-home">
       <header className="admin-home__header">
         <div>
@@ -103,10 +111,16 @@ export default function AdminHome() {
           ))}
         </div>
 
-        <button className="btn btn--accent" onClick={handleDownload} disabled={pendingCount === 0}>
-          تنزيل التغييرات {pendingCount > 0 ? `(${pendingCount})` : ""}
+        <button className="btn btn--accent" onClick={handleSave} disabled={pendingCount === 0}>
+          حفظ ونشر {pendingCount > 0 ? `(${pendingCount})` : ""}
         </button>
       </div>
+
+      {saveStatus && (
+        <div className="admin-empty" style={{ background: "rgba(37,99,235,0.08)", color: "#2563eb", textAlign: "right", padding: 10 }}>
+          {saveStatus}
+        </div>
+      )}
 
       {Object.keys(grouped).length === 0 && (
         <div className="admin-empty">لا توجد كورسات تطابق هذا الفلتر.</div>
@@ -146,5 +160,6 @@ export default function AdminHome() {
         </section>
       ))}
     </div>
+    </AdminTokenGate>
   );
 }
